@@ -8,7 +8,7 @@ x12GUI <- function(x12orig,...){
 	}else if(class(x12orig)=="ts"){
 		x12orig <- X12(new("x12Batch",list(x12orig)))
 	}
-    
+	
 	########################################################
 	#Variables
 	########################################################
@@ -17,7 +17,6 @@ x12GUI <- function(x12orig,...){
 	
 	locate <- FALSE
 	clickedX <- 100
-	plotvalues <- 1
 	
 	context.plot1 <- 0
 	context.plot2 <- 0
@@ -140,8 +139,8 @@ x12GUI <- function(x12orig,...){
 	entry.showoutyear <- gtkEntry()
 	label.showoutperiod <- gtkLabel("period:")
 	entry.showoutperiod <- gtkEntry()
-	label.showouttype <- gtkLabel("type:")
-	combobox.showouttype <- gtkComboBoxNewText()
+	#label.showouttype <- gtkLabel("type:")
+	#combobox.showouttype <- gtkComboBoxNewText()
 # checkb.showAlloutLines <- gtkCheckButtonNewWithLabel("Show Allout Lines")
 # checkb.annComp <- gtkCheckButtonNewWithLabel("AnnComp")
 # checkb.annCompTrend <- gtkCheckButtonNewWithLabel("AnnComp Trend")
@@ -153,7 +152,7 @@ x12GUI <- function(x12orig,...){
 # checkb.backcast <- gtkCheckButtonNewWithLabel("Backcast")
 	checkb.showCI <- gtkCheckButtonNewWithLabel("Show CI")
 	checkb.logtransform_fb <- gtkCheckButtonNewWithLabel("Log-Transform")
-	checkb.showLine <- gtkCheckButtonNewWithLabel("Show Line")
+	#checkb.showLine <- gtkCheckButtonNewWithLabel("Show Line")
 	checkb.pointsOriginal <- gtkCheckButtonNewWithLabel("Original Points")
 	
 	#plotparameter panel plotSeasFac
@@ -170,7 +169,7 @@ x12GUI <- function(x12orig,...){
 	radiob.spectralirregular <- gtkRadioButtonNewWithLabel("irregular", group=radiob.spectralsa$GetGroup())
 	radiob.spectralresiduals <- gtkRadioButtonNewWithLabel("residuals", group=radiob.spectralsa$GetGroup())
 	#sa, original, irregular und residuals
-
+	
 	#autocorrelation plot
 	frame.rsdacf <- gtkFrame("autocorrelation")
 	panel.rsdacf <- gtkVBox()
@@ -178,7 +177,7 @@ x12GUI <- function(x12orig,...){
 	radiob.rsdacfpacf <- gtkRadioButtonNewWithLabel("pacf", group=radiob.rsdacfacf$GetGroup())
 	radiob.rsdacfacf2 <- gtkRadioButtonNewWithLabel("acf2", group=radiob.rsdacfacf$GetGroup())
 	
-
+	
 	#manual outliers
 	frame.manualoutlier <- gtkFrame("Manual Outliers")
 	panel.manualoutlier <- gtkTable(rows=6, columns=2)
@@ -822,10 +821,35 @@ x12GUI <- function(x12orig,...){
 	#could use some tweaking
 	#######################################
 	convertCoordinates <- function(x){
-		uc <- grconvertX(x-0.5, from="device", to="npc")
-		ret <- plotvalues$usr[1]+(plotvalues$usr[2]-plotvalues$usr[1])*uc
-		f <- frequency(object@x12List[[indices]]@ts)
-		ret <- list(year=floor(ret), period=(floor((ret-floor(ret))*f))+1)
+		click <- x/area.plot4$GetAllocation()$allocation$width
+		usract <- par("usr")[1:2]
+		pltact <- par("plt")[1:2]
+		xnew <- (((click -pltact[1])/(pltact[2] -pltact[1]))*(usract[2] -usract[1]))+usract[1]
+		start_year <- floor(usract[1])
+		end_year <- ceiling(usract[2])
+		mm <- (0:(frequency(object@x12List[[indices]]@ts)-1))/frequency(object@x12List[[indices]]@ts)
+		start_year:end_year
+		tt <- expand.grid(start_year:end_year,mm)
+		tt <- tt[,1]+tt[,2]
+		tt <- tt[which.min(abs(xnew-tt))]
+		year <- floor(tt)
+		month <- round(1+(tt-year)*frequency(object@x12List[[indices]]@ts))
+		timess <- time(object@x12List[[indices]]@ts)
+		timeend <- timess[length(timess)]
+		timestart <- timess[1]
+		time <- timeend[length(timeend)]
+		if(tt>timeend){
+			ee <- end(object@x12List[[indices]]@ts)
+			year <- ee[1]
+			month <- ee[2]
+		}else if(tt<timestart){
+			ss <- start(object@x12List[[indices]]@ts)
+			year <- ss[1]
+			month <- ss[2]
+		}
+		
+		
+		ret <- list(year=year, period=month)
 	}
 	#######################################
 	
@@ -1187,7 +1211,7 @@ x12GUI <- function(x12orig,...){
 				if(combobox.manualoutliertype$GetActive()==2) typ <- "AO"
 				outlierlist[[length(outlierlist)+1]] <<- c(typ,as.numeric(entry.manualoutlieryear$GetText()),as.numeric(entry.manualoutlierperiod$GetText()))
 				checkb.regvariablesactive$SetActive(TRUE);
-			
+				
 				update_regvariables()
 			}
 		}
@@ -1199,7 +1223,7 @@ x12GUI <- function(x12orig,...){
 				outlierlist[[rows[1]]] <<- NULL
 				update_regvariables()
 			}
-
+			
 		}
 		
 		if(button == button.manualoutlieraddclick){
@@ -1494,7 +1518,7 @@ x12GUI <- function(x12orig,...){
 #			if(grepl("^(\\s)*(AO|LS|TC|all)(\\s)*((\\s)*(AO|LS|TC|all)(\\s)*)*$",text)){
 #				lapply(indices, FUN=function(s){object <<- setP(object,list(outlier=cutParam(text)),s)})
 #				status_print("outlier changed!")
-##				print(cutParam(text))
+		##				print(cutParam(text))
 #			}
 #			else{
 #				status_print("possible wrong input for outlier!")
@@ -1670,7 +1694,7 @@ x12GUI <- function(x12orig,...){
 			update_outliertable()
 			make_history()
 		}
-
+		
 		if(menuitem == menuitem.saveaspdf || menuitem == menuitem.saveaspdfwithoutlier || menuitem == menuitem.expplotaspdf){
 			dialog <- gtkFileChooserDialog("Save Plot as PDF", window.main, action="save","gtk-cancel", GtkResponseType["cancel"], 
 					"gtk-save", GtkResponseType["ok"])
@@ -1733,7 +1757,19 @@ x12GUI <- function(x12orig,...){
 			if(menuitem == menuitem.addLS) typ <- 'LS'
 			if(menuitem == menuitem.addTC) typ <- 'TC'
 			
-			outlierlist[[length(outlierlist)+1]] <<- c(typ,oc$year,oc$period)
+			ee <- end(object@x12List[[indices]]@ts)
+			ss <- start(object@x12List[[indices]]@ts)
+			if((oc$year==ee[1]&&oc$period==ee[2])||(oc$year==ss[1]&&oc$period==ss[2]))
+				typ <- 'AO'
+			TFexistOut <- FALSE
+			if(length(outlierlist)>0){
+				for(io in 1:length(outlierlist)){
+					if(all(outlierlist[[io]]==c(typ,oc$year,oc$period)))
+						TFexistOut <- TRUE
+				}
+			}
+			if(!TFexistOut)
+				outlierlist[[length(outlierlist)+1]] <<- c(typ,oc$year,oc$period)
 			checkb.regvariablesactive$SetActive(TRUE);
 			
 			update_regvariables()
@@ -1988,7 +2024,12 @@ x12GUI <- function(x12orig,...){
 		nl <- max(sapply(objectS@x12List, function(x) length(x@x12OldOutput)))
 #		buffer.summary$SetText(paste(capture.output(getMethod("summary","x12Single")(objectS@x12List[[indices[1]]], oldOutput=nl)), collapse="\n"))
 		if(text == TRUE){
-			buffer.summarytotal$SetText(paste(capture.output(getMethod("summary","x12Batch")(object, oldOutput=nl,
+			#buffer.summarytotal$SetText(paste(capture.output(getMethod("summary","x12Batch")(object, oldOutput=nl,
+			#								fullSummary=checkb.fullSummary$GetActive(), spectra.detail=checkb.spectraldetail$GetActive(),
+			#								almostout=checkb.almostout$GetActive(), rsd.autocorr=checkb.rsdautocorr$GetActive(),
+			#								q2=checkb.q2$GetActive(), likelihood.stat=checkb.likelihoodstat$GetActive(),
+			#								aape=checkb.aape$GetActive(), id.rsdseas=checkb.idrsdseas$GetActive())), collapse="\n"))
+			buffer.summarytotal$SetText(paste(capture.output(getMethod("summary","x12Single")(objectS@x12List[[indices[1]]], oldOutput=nl,
 											fullSummary=checkb.fullSummary$GetActive(), spectra.detail=checkb.spectraldetail$GetActive(),
 											almostout=checkb.almostout$GetActive(), rsd.autocorr=checkb.rsdautocorr$GetActive(),
 											q2=checkb.q2$GetActive(), likelihood.stat=checkb.likelihoodstat$GetActive(),
@@ -2034,7 +2075,6 @@ x12GUI <- function(x12orig,...){
 			}
 		}
 	}
-	
 #	setupSummarytable <- function(table, x12sum){
 #		i <- 0
 #		sapply(names(x12sum), FUN=function(s){
@@ -3084,16 +3124,16 @@ x12GUI <- function(x12orig,...){
 		showout <- NULL
 		if(checkb.showout$GetActive() == TRUE){
 			if(isNumber(entry.showoutyear$GetText()) == TRUE && isNumber(entry.showoutperiod$GetText()) == TRUE &&
-					as.numeric(entry.showoutperiod$GetText()) < frequency(objectP@x12List[[indices[1]]]@ts) &&
+					as.numeric(entry.showoutperiod$GetText()) <= frequency(objectP@x12List[[indices[1]]]@ts) &&
 					as.numeric(entry.showoutyear$GetText()) >= start(objectP@x12List[[indices[1]]]@ts) &&
 					as.numeric(entry.showoutyear$GetText()) <= end(objectP@x12List[[indices[1]]]@ts)){
-				showout <- paste(combobox.showouttype$GetActiveText(),entry.showoutyear$GetText(),".",entry.showoutperiod$GetText(),sep="")
+				showout <- paste(entry.showoutyear$GetText(),".",entry.showoutperiod$GetText(),sep="")
 			}
 		}
 #		if(length(v[[1]])>0 && checkb.showAllout$GetActive()==TRUE)showallout=TRUE;
-		s <- capture.output(plotvalues <<- plot(objectP@x12List[[indices[1]]], sa=checkb.sa$GetActive(), trend=checkb.trend$GetActive(), 
-						log_transform=checkb.logtransform$GetActive(), backcast=TRUE, forecast=TRUE,
-						showCI=checkb.showCI$GetActive(), showLine=checkb.showLine$GetActive(), 
+		s <- capture.output(plotgui(objectP@x12List[[indices[1]]]@x12Output, sa=checkb.sa$GetActive(), trend=checkb.trend$GetActive(), 
+						log_transform=checkb.logtransform$GetActive(),
+						showCI=checkb.showCI$GetActive(), 
 						points_original=checkb.pointsOriginal$GetActive(),showAllout=checkb.showAllout$GetActive(),
 						span=calcSpan(times(objectP@x12List[[indices[1]]]),objectP@x12List[[indices[1]]]@ts),showOut=showout))
 		if(is.character(s) & length(s)>0){
@@ -3167,7 +3207,7 @@ x12GUI <- function(x12orig,...){
 	splitRegvariables <- function(rv){
 		outliers <- vector()
 		regvariables <- vector()
-
+		
 		for(s in rv){
 			if(grepl("^(\\s)*(AO|LS|TC)[0-9]*\\.[0-9]*(\\s)*$",s)==TRUE){
 				outliers <- append(outliers, trim(s))
@@ -3639,7 +3679,7 @@ x12GUI <- function(x12orig,...){
 #	label.outlier$SetAlignment(0,0.5)
 #	entry.outlier$SetSizeRequest(57,-1)
 #	panel.params$AttachDefaults(entry.outlier, 4, 6, 44, 45)
-##	panel.params$AttachDefaults(panel.outlier, expand=FALSE, padding=5)
+	##	panel.params$AttachDefaults(panel.outlier, expand=FALSE, padding=5)
 #	handler.outlier <- gSignalConnect(entry.outlier, "changed", f=x12input_handler)
 	panel.outlier$AttachDefaults(checkb.outlieractive, 1, 2, 1, 2)
 	panel.outlier$AttachDefaults(gtkLabel("all"), 1, 2, 2, 3)
@@ -3895,7 +3935,7 @@ x12GUI <- function(x12orig,...){
 	panel.plotparams$PackStart(checkb.trend)
 	panel.plotparams$PackStart(checkb.logtransform)
 	panel.plotparams$PackStart(checkb.showCI)
-	panel.plotparams$PackStart(checkb.showLine)
+	#panel.plotparams$PackStart(checkb.showLine)
 	panel.plotparams$PackStart(checkb.pointsOriginal)
 	panel.plotparams$PackStart(checkb.showAllout)
 # panel.plotparams$PackStart(checkb.showAlloutLines)
@@ -3906,7 +3946,7 @@ x12GUI <- function(x12orig,...){
 	gSignalConnect(checkb.trend, "toggled", f=function(...) update_notebook(onlyplot=TRUE))
 	gSignalConnect(checkb.logtransform, "toggled", f=function(...) update_notebook(onlyplot=TRUE))
 	gSignalConnect(checkb.showCI, "toggled", f=function(...) update_notebook(onlyplot=TRUE))
-	gSignalConnect(checkb.showLine, "toggled", f=function(...) update_notebook(onlyplot=TRUE))
+	#gSignalConnect(checkb.showLine, "toggled", f=function(...) update_notebook(onlyplot=TRUE))
 	gSignalConnect(checkb.pointsOriginal, "toggled", f=function(...) update_notebook(onlyplot=TRUE))
 	gSignalConnect(checkb.showAllout, "toggled", f=function(...) update_notebook())
 # gSignalConnect(checkb.showAlloutLines, "toggled", f=function(...) update_notebook())
@@ -3917,17 +3957,17 @@ x12GUI <- function(x12orig,...){
 #	panel.showout$SetRowSpacings(5)
 	entry.showoutyear$SetSizeRequest(15,-1)
 	entry.showoutperiod$SetSizeRequest(15,-1)
-	combobox.showouttype$SetSizeRequest(15,-1)
-	combobox.showouttype$AppendText("AO")
-	combobox.showouttype$AppendText("LS")
-	combobox.showouttype$AppendText("TC")
+	#combobox.showouttype$SetSizeRequest(15,-1)
+	#combobox.showouttype$AppendText("AO")
+	#combobox.showouttype$AppendText("LS")
+	#combobox.showouttype$AppendText("TC")
 	panel.showout$AttachDefaults(checkb.showout, 1, 2, 1, 2)
 	panel.showout$AttachDefaults(label.showoutyear, 1, 2, 3, 4)
 	panel.showout$AttachDefaults(entry.showoutyear, 2, 3, 3, 4)
 	panel.showout$AttachDefaults(label.showoutperiod, 1, 2, 4, 5)
 	panel.showout$AttachDefaults(entry.showoutperiod, 2, 3, 4, 5)
-	panel.showout$AttachDefaults(label.showouttype, 1, 2, 2, 3)
-	panel.showout$AttachDefaults(combobox.showouttype, 2, 3, 2, 3)
+	#panel.showout$AttachDefaults(label.showouttype, 1, 2, 2, 3)
+	#panel.showout$AttachDefaults(combobox.showouttype, 2, 3, 2, 3)
 	alignment.showout <- gtkAlignment()
 	alignment.showout$SetPadding(3,3,3,3)
 	alignment.showout$Add(panel.showout)
@@ -3936,14 +3976,14 @@ x12GUI <- function(x12orig,...){
 	gSignalConnect(checkb.showout, "toggled", f=function(...){
 				update_notebook(onlyplot=TRUE)
 				toggle(c(entry.showoutyear), checkb.showout)
-				toggle(c(combobox.showouttype), checkb.showout)
+				#toggle(c(combobox.showouttype), checkb.showout)
 				toggle(c(entry.showoutperiod), checkb.showout)})
 	gSignalConnect(entry.showoutyear, "changed", f=function(...) update_notebook(onlyplot=TRUE))
 	gSignalConnect(entry.showoutperiod, "changed", f=function(...) update_notebook(onlyplot=TRUE))
-	gSignalConnect(combobox.showouttype, "changed", f=function(...) update_notebook(onlyplot=TRUE))
+	#gSignalConnect(combobox.showouttype, "changed", f=function(...) update_notebook(onlyplot=TRUE))
 	entry.showoutyear$SetSensitive(FALSE)
 	entry.showoutperiod$SetSensitive(FALSE)
-	combobox.showouttype$SetSensitive(FALSE)
+	#combobox.showouttype$SetSensitive(FALSE)
 	checkb.showout$SetActive(FALSE)
 	##
 	frame.plotparams$Add(panel.plotparams)
@@ -4008,7 +4048,7 @@ x12GUI <- function(x12orig,...){
 #  gSignalConnect(checkb.pointsOriginal, "toggled", f=function(...) update_notebook(onlyplot=TRUE))
 #  frame.plotFbcastparams$Add(panel.plotFbcastparams)
 #  panel.plotp$PackStart(frame.plotFbcastparams, expand=FALSE)
-
+	
 	panel.gui$PackStart(panel.ts)
 	panel.scrolledparams$SetPolicy("GTK_POLICY_NEVER","GTK_POLICY_ALWAYS")
 	panel.scrolledparams$AddWithViewport(panel.params)
@@ -4144,7 +4184,10 @@ x12GUI <- function(x12orig,...){
 	gSignalConnect(notebook.plot, "switch-page", f=notebookhandler)
 	window.main$Resize(1100,700)
 	window.main$Show()
-	read_x12(object, c(1,2,3,4))
+	read_x12(object, c(1))
+	window.main$SetFocus(table.ts)
+	table.ts$GetSelection()$SelectPath(gtkTreePathNewFirst())
+	table.ts$SetCursor(gtkTreePathNewFirst())
 	gSignalConnect(window.main, "destroy", f=function(...){gtkMainQuit()})
 	status_print("Programm started!")
 	gtkMain()

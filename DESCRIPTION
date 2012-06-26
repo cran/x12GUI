@@ -1,6 +1,6 @@
 Package: x12GUI
-Version: 0.1-0
-Date: 2012-05-04
+Version: 0.2-0
+Date: 2012-06-26
 Title: X12 - Graphical User Interface
 Author: Daniel Schopfhauser, Alexander Kowarik
         <alexander.kowarik@statistik.gv.at>, Angelika Meraner
@@ -10,6 +10,6 @@ Depends: R (>= 2.14.0),methods,stats,utils,grDevices,x12(>=
 Description: A graphical user interface for the x12 package
 License: GPL (>= 2)
 URL: http://www.r-project.org
-Packaged: 2012-06-06 12:12:21 UTC; KOWA$
+Packaged: 2012-06-26 09:11:18 UTC; alex
 Repository: CRAN
-Date/Publication: 2012-06-11 06:19:40
+Date/Publication: 2012-06-26 09:30:51
