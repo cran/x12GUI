@@ -1,2 +1,3 @@
+import(Hmisc, cairoDevice, grid, lattice,stringr)
 #S3 part
 export("x12GUI")

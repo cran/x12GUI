@@ -200,6 +200,157 @@ plotgui <- function(x,original=TRUE,sa=FALSE,trend=FALSE,
         pchs[types=="tc"] <- pch_tc
         points(times,vals,pch=pchs,col=cols,cex=cex_out)
       }
+	putKeyEmpty.New(time(na.omit(fullTs)),na.omit(fullTs),labels=c("AO","LS","TC"),type="p",pch=c(4,2,23),col="red")
+	  
   }
   
 }
+
+
+######
+"putKeyEmpty.New"<-function (x, y, labels, type = NULL, pch = NULL, lty = NULL, 
+		lwd = NULL, cex = par("cex"), col = rep(par("col"), nc), 
+		transparent = TRUE, plot = TRUE, key.opts = NULL, empty.method = c("area", 
+				"maxdim"), numbins = 25, xlim = pr$usr[1:2], ylim = pr$usr[3:4], 
+		grid = FALSE) 
+{
+	nc <- length(labels)
+	empty.method <- match.arg(empty.method)
+	pr <- parGrid(grid)
+	uin <- pr$uin
+	if (.R.) 
+		uin <- 1
+	z <- putKey.New(list(0, 0), labels, type, pch, lty, lwd, cex, 
+			col, transparent = transparent, plot = FALSE, key.opts = key.opts, 
+			grid = grid)/uin
+	s <- is.finite(x + y)
+	if (length(xlim)) 
+		s <- s & (x >= xlim[1] & x <= xlim[2])
+	if (length(ylim)) 
+		s <- s & (y >= ylim[1] & y <= ylim[2])
+	x <- x[s]
+	y <- y[s]
+	keyloc <- largest.empty(x, y, xlim = xlim, ylim = ylim, width = z[1], 
+			height = z[2], method = empty.method, numbins = numbins, 
+			grid = grid)
+	if (is.na(keyloc$x)) {
+		cat("No empty area large enough for automatic key positioning.  Specify keyloc or cex.\n")
+		cat("Width and height of key as computed by key(), in data units:", 
+				format(z), "\n")
+		return(keyloc)
+	}
+	else if (plot) 
+		putKey.New(keyloc, labels, type, pch, lty, lwd, cex, col, 
+				transparent, plot = TRUE, key.opts = key.opts, grid = grid)
+	invisible(keyloc)
+}
+
+"putKey.New" <- function (z, labels, type = NULL, pch = NULL, lty = NULL, lwd = NULL, 
+		cex = par("cex"), col = rep(par("col"), nc), transparent = TRUE, 
+		plot = TRUE, key.opts = NULL, grid = FALSE) 
+{
+	if (!.R. && !existsFunction("key")) 
+		stop("must do library(trellis) to access key() function")
+	nc <- length(labels)
+	if (!length(pch)) 
+		pch <- rep(NA, nc)
+	if (!length(lty)) 
+		lty <- rep(NA, nc)
+	if (!length(lwd)) 
+		lwd <- rep(NA, nc)
+#	pp <- !is.na(pch)
+#	lp <- !is.na(lty) | !is.na(lwd)
+#	lwd <- ifelse(is.na(lwd), par("lwd"), lwd)
+#	if (!length(type)) 
+#		type <- ifelse(!(pp | lp), "n", ifelse(pp & lp, "b", 
+#						ifelse(pp, "p", "l")))
+#	pch <- ifelse(is.na(pch) & type != "p" & type != "b", if (.R.) 
+#						NA
+#					else 0, pch)
+#	lty <- ifelse(is.na(lty) & type == "p", if (.R.) 
+#						NA
+#					else 1, lty)
+#	lwd <- ifelse(is.na(lwd) & type == "p", 1, lwd)
+#	cex <- ifelse(is.na(cex) & type != "p" & type != "b", 1, 
+#			cex)
+#	if (!.R. && any(is.na(pch))) 
+#		stop("pch can not be NA for type='p' or 'b'")
+#	if (!.R. && any(is.na(lty))) 
+#		stop("lty can not be NA for type='l' or 'b'")
+#	if (any(is.na(lwd))) 
+#		stop("lwd can not be NA for type='l' or 'b'")
+#	if (any(is.na(cex))) 
+#		stop("cex can not be NA for type='p' or 'b'")
+	m <- list()
+	m[[1]] <- as.name(if (grid) 
+						"draw.key"
+					else if (.R.) 
+						"rlegend"
+					else "key")
+	if (!grid) {
+		m$x <- z[[1]]
+		m$y <- z[[2]]
+	}
+	if (.R.) {
+		if (grid) {
+			w <- list(text = list(labels, col = col))
+			if (!(all(is.na(lty)) & all(is.na(lwd)))) {
+				lns <- list()
+				if (!all(is.na(lty))) 
+					lns$lty <- lty
+				if (!all(is.na(lwd))) 
+					lns$lwd <- lwd
+				lns$col <- col
+				w$lines <- lns
+			}
+			if (!all(is.na(pch))) 
+				w$points <- list(pch = pch, col = col)
+			m$key <- c(w, key.opts)
+			m$draw <- plot
+			if (plot) 
+				m$vp <- viewport(x = unit(z[[1]], "native"), 
+						y = unit(z[[2]], "native"))
+			z <- eval(as.call(m))
+			size <- if (plot) 
+						c(NA, NA)
+					else c(convertUnit(grobWidth(z), "native", "x", "location", 
+										"x", "dimension", valueOnly = TRUE)[1], convertUnit(grobHeight(z), 
+										"native", "y", "location", "y", "dimension", 
+										valueOnly = TRUE)[1])
+			return(invisible(size))
+		}
+		else {
+			m$legend <- labels
+			m$xjust <- m$yjust <- 0.5
+			m$plot <- plot
+			m$col <- col
+			m$cex <- cex
+			if (!all(is.na(lty))) 
+				m$lty <- lty
+			if (!all(is.na(lwd))) 
+				m$lwd <- lwd
+			if (!all(is.na(pch))) 
+				m$pch <- pch
+			if (length(key.opts)) 
+				m[names(key.opts)] <- key.opts
+			w <- eval(as.call(m))$rect
+			return(invisible(c(w$w[1], w$h[1])))
+		}
+	}
+	m$transparent <- transparent
+	m$corner <- c(0.5, 0.5)
+	m$plot <- plot
+	m$type <- type
+	if (!plot) 
+		labels <- substring(labels, 1, 10)
+	m$text <- list(labels, col = col)
+	if (all(type == "p")) 
+		m$points <- list(pch = pch, cex = cex, col = col)
+	else m$lines <- if (any(type != "l")) 
+					list(lty = lty, col = col, lwd = lwd, pch = pch, cex = cex)
+				else list(lty = lty, col = col, lwd = lwd)
+	if (length(key.opts)) 
+		m[names(key.opts)] <- key.opts
+	invisible(eval(as.call(m)))
+}
+
