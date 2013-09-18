@@ -1,29 +1,17 @@
 \name{x12GUI}
 \alias{x12GUI}
-\title{Graphical User Interface for the S4 implementation of the X12-Arima wrapper in package x12}
-\description{
-  GUI
-}
+\title{Graphical User Interface for the S4 implementation of the X12-Arima wrapper
+in package x12}
 \usage{
-x12GUI(x12orig,...)
+  x12GUI(x12orig, ...)
 }
 \arguments{
   \item{x12orig}{object of class x12Batch or x12Single}
+
   \item{\dots}{further arguments (currently ignored).}
 }
-\author{Daniel Schopfhauser}
-\seealso{
-\code{\link{x12}},
-\code{\link{x12env}},
-\code{\linkS4class{x12Single}},
-\code{\linkS4class{x12Batch}},
-\code{\linkS4class{x12Parameter}},
-\code{\linkS4class{x12List}},
-\code{\linkS4class{x12Output}},
-\code{\linkS4class{x12BaseInfo}},
-\code{\link{summary}},
-%\code{\link{summary.x12}},
-\code{\link{x12work}}
+\description{
+  GUI
 }
 \examples{
 \dontrun{
@@ -42,8 +30,20 @@ b <- new("x12Batch",list(s1,s2,s3))
 ##Use GUI to handle single object
 s1 <- x12GUI(s1)
 ##Use GUI to handle batch object
-b <- x12GUI(b)   
+b <- x12GUI(b)
 }
 }
-
+\author{
+  Daniel Schopfhauser
+}
+\seealso{
+  \code{\link{x12}}, \code{\link{x12env}},
+  \code{\linkS4class{x12Single}},
+  \code{\linkS4class{x12Batch}},
+  \code{\linkS4class{x12Parameter}},
+  \code{\linkS4class{x12List}},
+  \code{\linkS4class{x12Output}},
+  \code{\linkS4class{x12BaseInfo}}, \code{\link{summary}},
+  %\code{\link{summary.x12}}, \code{\link{x12work}}
+}
 

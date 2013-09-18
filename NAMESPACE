@@ -1,3 +1,9 @@
-import(Hmisc, cairoDevice, grid, lattice,stringr)
-#S3 part
-export("x12GUI")
+import(methods)
+import(RGtk2)
+export(x12GUI)
+import(cairoDevice)
+import(grid)
+import(x12)
+import(Hmisc)
+import(lattice)
+import(stringr)
