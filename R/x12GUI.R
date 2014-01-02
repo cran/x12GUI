@@ -3,7 +3,6 @@
 #' 
 #' GUI
 #' 
-#' 
 #' @param x12orig object of class x12Batch or x12Single
 #' @param \dots further arguments (currently ignored).
 #' @author Daniel Schopfhauser
@@ -41,6 +40,7 @@
 #' @import x12
 #' @export x12GUI
 x12GUI <- function(x12orig,...){
+  tmpfsink <- tempfile()##tmpfile for catching the output to the console of x12
   window.main <- gtkWindow("x12 GUI")
   if(existd("x12path")==FALSE){
     dialog <- gtkMessageDialog(window.main, "destroy-with-parent",
@@ -100,7 +100,7 @@ x12GUI <- function(x12orig,...){
 	button.update <- gtkButton("Update")
 	
 	menubar.main <- gtkMenuBar()
-	menuitem.x12update <- gtkMenuItemNewWithMnemonic("_x12 Update")
+	menuitem.x12update <- gtkMenuItemNewWithMnemonic("x12 _Update")
 	menuitem.expplotaspdf <- gtkMenuItem("Export current Plot as PDF")
 	menuitem.expplotaspng <- gtkMenuItem("Export current Plot as PNG")
 	menuitem.expsummarycsv <- gtkMenuItem("Export summary as CSV")
@@ -122,12 +122,12 @@ x12GUI <- function(x12orig,...){
 	table.model <- gtkListStore("character")
 	handler.tstable <- 0
 	
-	frame.history <- gtkFrame("History")
+	frame.history <- gtkFrame("Archive")
 	panel.history <- gtkVBox()
 	label.history <- gtkLabel("revert to:")
 	combobox.history <- gtkComboBoxNewText()
 	button.revert <- gtkButton("Revert")
-	button.clearhistory <- gtkButton("Clean History")
+	button.clearhistory <- gtkButton("Clean Archive")
 	count.history <- 0
 	
 	#Panels
@@ -160,10 +160,9 @@ x12GUI <- function(x12orig,...){
 	#plotcontextmenu with manual outlier
 	menu.contextplotwithoutlier <- gtkMenu()
 	menuitem.saveaspdfwithoutlier <- gtkMenuItemNewWithLabel("Save as PDF")
-	menuitem.addAO <- gtkMenuItemNewWithLabel("Add AO Outlier")
-	menuitem.addTC <- gtkMenuItemNewWithLabel("Add TC Outlier")
-	menuitem.addLS <- gtkMenuItemNewWithLabel("Add LS Outlier")
-	
+	menuitem.addAO <- gtkMenuItemNewWithLabel("Add AO Outlier (Regression must be active)")
+	menuitem.addTC <- gtkMenuItemNewWithLabel("Add TC Outlier (Regression must be active)")
+	menuitem.addLS <- gtkMenuItemNewWithLabel("Add LS Outlier (Regression must be active)")
 	
 	#plotslider
 	slider.plotmin <- gtkHScale(min = 0, max= 100, step=5)
@@ -201,7 +200,9 @@ x12GUI <- function(x12orig,...){
 	panel.scrolledplotparams <- gtkScrolledWindow()
 	frame.plotparams <- gtkFrame("Plot")
 	panel.plotparams <- gtkVBox()
-	checkb.sa <- gtkCheckButtonNewWithLabel("seasonally adjusted")
+  checkb.orig <- gtkCheckButtonNewWithLabel("original")
+  checkb.orig$SetActive(TRUE)
+  checkb.sa <- gtkCheckButtonNewWithLabel("seasonally adjusted")
 	checkb.trend <- gtkCheckButtonNewWithLabel("trend")
 	checkb.logtransform <- gtkCheckButtonNewWithLabel("log-transformation")
 	checkb.showAllout <- gtkCheckButtonNewWithLabel("show all outliers")
@@ -2966,7 +2967,7 @@ x12GUI <- function(x12orig,...){
 			spect <- "acf"
 			if(radiob.rsdacfacf2$GetActive() == TRUE)spect <- "acf2"
 			if(radiob.rsdacfpacf$GetActive() == TRUE)spect <- "pacf"
-			plotRsdAcf(object@x12List[[indices[1]]], which=spect)
+      plotRsdAcfGUI(object@x12List[[indices[1]]], which=spect,main=object@x12List[[indices[1]]]@tsName)
 		}
 		if(page.num==1){
 			if(context.plot2==0){
@@ -2978,7 +2979,16 @@ x12GUI <- function(x12orig,...){
 			if(radiob.spectraloriginal$GetActive() == TRUE)spect <- "original"
 			if(radiob.spectralresiduals$GetActive() == TRUE)spect <- "residuals"
 			if(radiob.spectralirregular$GetActive() == TRUE)spect <- "irregular"
-			plotSpec(object@x12List[[indices[1]]], which=spect)
+      if(spect=="sa")
+        main <- "Spectrum of the Seasonally Adjusted Series"
+      else if(spect=="original")
+        main <- "Spectrum of the Original Series"      
+      else if(spect=="irregular")
+        main <- "Spectrum of the Irregular"
+      else if(spect=="residuals")
+        main <- "Spectrum of the RegARIMA Residuals"
+      main <- paste(object@x12List[[indices[1]]]@tsName,"-",main)
+			plotSpec(object@x12List[[indices[1]]], which=spect,main=main,legend_bty="n",legend_horiz=FALSE)
 		}
 		if(page.num==3){
 			if(context.plot3==0){
@@ -2986,8 +2996,8 @@ x12GUI <- function(x12orig,...){
 				context.plot3 <<- dev.cur()
 			}
 			if(!file)dev.set(context.plot3)
-			plotSeasFac(object@x12List[[indices[1]]])
-			
+        main <- paste(object@x12List[[indices[1]]]@tsName,"-","Seasonal Factors by period and SI Ratios")
+			  plotSeasFac(object@x12List[[indices[1]]],main=main,legend_bty="n",legend_horiz=FALSE)
 		}
 		if(page.num==0){
 			if(context.plot4==0){
@@ -3044,10 +3054,27 @@ x12GUI <- function(x12orig,...){
 	#Handler responsible for the contextmenus of the plots
 	menuhandler <- function(menuitem, userdata){
 		if(menuitem == menuitem.x12update){
-			object <<- x12(object) 
-			update_notebook(reset=FALSE)
-			update_outliertable()
-			make_history()
+      dialog <- gtkMessageDialog(window.main, "destroy-with-parent","warning","none", "Please wait, X12-ARIMA is runnning!")
+      sink(tmpfsink)
+      tt <- try(object <<- x12(object))
+      sink()
+      
+      runOutput <- readLines(tmpfsink)
+      runOutput <- runOutput[runOutput!=" "]
+      if(length(grep("ERROR",runOutput))>0){
+        dialog$destroy()
+        runOutput <- paste(runOutput,collapse="\n")
+        dialog <- gtkMessageDialog(window.main, "destroy-with-parent","error","cancel", runOutput)
+        if(dialog$run()){
+          dialog$destroy()
+        }
+      }else{
+			  update_notebook(reset=FALSE)
+			  update_outliertable()
+			  make_history()
+        dialog$destroy()
+      }
+    
 		}
 		
 		if(menuitem == menuitem.saveaspdf || menuitem == menuitem.saveaspdfwithoutlier || menuitem == menuitem.expplotaspdf){
@@ -3113,8 +3140,8 @@ x12GUI <- function(x12orig,...){
 			if(!TFexistOut)
 				outlierlist[[length(outlierlist)+1]] <<- c(typ,oc$year,oc$period)
 			checkb.regvariablesactive$SetActive(TRUE);
-			
-			update_regvariables()
+      update_regvariables()
+      
 		}
 		
 		if(menuitem == menuitem.expsummarycsv || menuitem == menuitem.expsummaryclipboard){
@@ -5271,11 +5298,12 @@ x12GUI <- function(x12orig,...){
 			}
 		}
 #		if(length(v[[1]])>0 && checkb.showAllout$GetActive()==TRUE)showallout=TRUE;
-		s <- capture.output(plotgui(objectP@x12List[[min(indices)]]@x12Output, sa=checkb.sa$GetActive(), trend=checkb.trend$GetActive(), 
+		s <- capture.output(plotgui(objectP@x12List[[min(indices)]]@x12Output, original=checkb.orig$GetActive(),sa=checkb.sa$GetActive(), trend=checkb.trend$GetActive(), 
 						log_transform=checkb.logtransform$GetActive(),
 						showCI=checkb.showCI$GetActive(), 
 						points_original=checkb.pointsOriginal$GetActive(),showAllout=checkb.showAllout$GetActive(),
-						span=calcSpan(times(objectP@x12List[[min(indices)]]),objectP@x12List[[min(indices)]]@ts),showOut=showout))
+						span=calcSpan(times(objectP@x12List[[min(indices)]]),objectP@x12List[[min(indices)]]@ts),showOut=showout,tsName=objectP@x12List[[min(indices)]]@tsName                
+                ))
 		if(is.character(s) & length(s)>0){
 			status_print(s)
 		}
@@ -5356,7 +5384,7 @@ x12GUI <- function(x12orig,...){
 						"warning", "yes-no", "History will be lost, do you really want to do this?")
 				res <- dialog$Run()
 				if(res==-8){
-					object@x12List[[indices[1]]] <<- cleanHistory(object@x12List[[min(indices)]])
+					object@x12List[[indices[1]]] <<- cleanArchive(object@x12List[[min(indices)]])
 					make_history()
 					update_notebook()
 				}
@@ -6186,6 +6214,7 @@ x12GUI <- function(x12orig,...){
 	gSignalConnect(button.manualoutlieradd, "released", f=manualoutlierhandler)
 	
   #plot(...)
+  panel.plotparams$PackStart(checkb.orig)  
   panel.plotparams$PackStart(checkb.sa)
   panel.plotparams$PackStart(checkb.trend)
   panel.plotparams$PackStart(checkb.logtransform)
@@ -6197,6 +6226,7 @@ x12GUI <- function(x12orig,...){
   # panel.plotparams$PackStart(checkb.annComp)
   # panel.plotparams$PackStart(checkb.annCompTrend)
   # gSignalConnect(checkb.original, "toggled", f=function(...) update_notebook())
+  gSignalConnect(checkb.orig, "toggled", f=function(...) update_notebook(onlyplot=TRUE))  
   gSignalConnect(checkb.sa, "toggled", f=function(...) update_notebook(onlyplot=TRUE))
   gSignalConnect(checkb.trend, "toggled", f=function(...) update_notebook(onlyplot=TRUE))
   gSignalConnect(checkb.logtransform, "toggled", f=function(...) update_notebook(onlyplot=TRUE))
